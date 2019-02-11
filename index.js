@@ -6,18 +6,18 @@ var bgSubtractor = new cv.BackgroundSubtractorMOG2()
 
 var fs = require('fs')
 
-const lccs = ['drone', 'negative']
+const lccs = [ 'drone', 'negative' ]
 
-var hog = new cv.HOGDescriptor({
+const hog = new cv.HOGDescriptor({
   winSize: new cv.Size(40, 40),
-  blockSize: new cv.Size(16, 16),
-  blockStride: new cv.Size(8, 8),
-  cellSize: new cv.Size(8, 8),
+  blockSize: new cv.Size(20, 20),
+  blockStride: new cv.Size(10, 10),
+  cellSize: new cv.Size(10, 10),
   L2HysThreshold: 0.2,
   nbins: 9,
   gammaCorrection: true,
   signedGradient: true
-})
+});
 
  var svm = new cv.SVM({
   kernelType: cv.ml.SVM.RBF,
@@ -52,7 +52,7 @@ function drawRectAroundBlobs (binaryImg, dstImg, minPxSize, fixedRectWidth) {
     const size = stats.at(label, cv.CC_STAT_AREA);
     const blue = new cv.Vec(255, 0, 0);
     if (minPxSize < size) {
-      dstImg.drawRectangle(new cv.Point(x1, y1), new cv.Point(x2, y2), new cv.Vec(255, 0, 0), 2, cv.LINE_8);
+      //dstImg.drawRectangle(new cv.Point(x1, y1), new cv.Point(x2, y2), new cv.Vec(255, 0, 0), 2, cv.LINE_8);
       rects.push(new cv.Rect(x1, y1, w, h))
     }
   }
@@ -85,7 +85,6 @@ function centroidTracker (maxDisappeared) {
   }
 
   self.deregister = function (objectID) {
-    console.log('deregister')
     var o = []
     self.objects.forEach(function (i) {
         if (i.id !== objectID) o.push(i)
@@ -187,7 +186,6 @@ function centroidTracker (maxDisappeared) {
       // }
       self.objects[measurement.object_id].lifetime += 1
       if (self.objects[measurement.object_id].lifetime > self.maxDisappeared) {
-        console.log('dereg 2')
         self.deregister(self.objects[measurement.object_id])
       }
       input[measurement.input_id].used = true
@@ -243,7 +241,7 @@ function centroidTracker (maxDisappeared) {
 
 var tracker = centroidTracker (11000)
 
-grabFrames('/dev/video0', delay, (frame) => {
+grabFrames('/dev/video0', 1, (frame) => {
   var foreGroundMask = bgSubtractor.apply(frame)
    var iterations = 2
    var dilated = foreGroundMask.dilate(
@@ -252,23 +250,26 @@ grabFrames('/dev/video0', delay, (frame) => {
      iterations)
    var blurred = dilated.blur(new cv.Size(10, 10))
    var thresholded = blurred.threshold(200, 255, cv.THRESH_BINARY)
-   var minPxSize = 100
+   var minPxSize = 1
    var rects = drawRectAroundBlobs(thresholded, frame, minPxSize)
    var detections = []
    rects.forEach(function (r, index) {
       var y = frame.copy()
-      var x = y.getRegion(r)
+      if ((r.x - 20) < 0 || r.y -20 < 0 || r.x+r.width + 20 > 640 || r.y+r.height+20 > 480) return
+      var x = y.getRegion(new cv.Rect(r.x-20, r.y-20, 40, 40))
       if (!x) return;
       var prediction = svm.predict(getHog(x))
       // console.log(':: ', lccs[parseInt(prediction)], prediction)
-      if (parseInt(prediction) === 0) {
+      // return
+      if (parseInt(prediction) === 0 && (r.y < (480/2)+40)) {
           frame.drawRectangle(
             new cv.Point(r.x, r.y),
             new cv.Point(r.x + r.width,
             r.y + r.height),
             new cv.Vec(0, 0, 255),
             2, cv.LINE_8);
-          detections.push(r)
+            // cv.imwrite('./gather/'+new Date().toISOString()+'.jpg', x)
+            detections.push(r)
       }
    })
    tracker.update(frame, detections)

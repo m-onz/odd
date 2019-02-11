@@ -3,4 +3,7 @@ node_modules
 package-lock.json
 data
 train
+test
+gather
 svm/model.xml
+svm/model1.xml
