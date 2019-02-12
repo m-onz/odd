@@ -52,7 +52,7 @@ function drawRectAroundBlobs (binaryImg, dstImg, minPxSize, fixedRectWidth) {
     const size = stats.at(label, cv.CC_STAT_AREA);
     const blue = new cv.Vec(255, 0, 0);
     if (minPxSize < size) {
-      //dstImg.drawRectangle(new cv.Point(x1, y1), new cv.Point(x2, y2), new cv.Vec(255, 0, 0), 2, cv.LINE_8);
+      // dstImg.drawRectangle(new cv.Point(x1, y1), new cv.Point(x2, y2), new cv.Vec(255, 0, 0), 1, cv.LINE_8);
       rects.push(new cv.Rect(x1, y1, w, h))
     }
   }
@@ -124,7 +124,7 @@ function centroidTracker (maxDisappeared) {
     self.objects.forEach(function (i, index) {
       if (i.lifetime < self.threshold) return
       self.centroid_history.push({ index: index, x: i.x, y: i.y })
-      if (self.centroid_history.length > 111) self.centroid_history = []
+      // if (self.centroid_history.length > 111) self.centroid_history = []
       var alpha = 1;
       cv.drawTextBox(
         image,
@@ -133,8 +133,8 @@ function centroidTracker (maxDisappeared) {
         alpha
       );
       image.drawRectangle(
-        new cv.Point(i.x-5, i.y-5),
-        new cv.Point(i.x+5, i.y+5),
+        new cv.Point(i.x-1, i.y-1),
+        new cv.Point(i.x+1, i.y+1),
         { color: new cv.Vec(0, 0, 255), thickness: 1 }
       );
     })
@@ -220,7 +220,7 @@ function centroidTracker (maxDisappeared) {
           new cv.Point(merged[l][index].x, merged[l][index].y),
           new cv.Point(merged[l][index-1].x, merged[l][index-1].y),
           new cv.Vec(0, 0, 255),
-          2
+          1
         );
       })
     })
@@ -239,38 +239,70 @@ function centroidTracker (maxDisappeared) {
   }
 }
 
-var tracker = centroidTracker (11000)
+var tracker = centroidTracker (500)
 
-grabFrames('/dev/video0', 1, (frame) => {
+grabFrames('./test/1.avi', 1, (frame) => {
   var foreGroundMask = bgSubtractor.apply(frame)
-   var iterations = 2
+   var iterations = 1
    var dilated = foreGroundMask.dilate(
      cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(4, 4)),
      new cv.Point(-1, -1),
      iterations)
-   var blurred = dilated.blur(new cv.Size(10, 10))
+   var blurred = dilated.blur(new cv.Size(6, 6))
    var thresholded = blurred.threshold(200, 255, cv.THRESH_BINARY)
    var minPxSize = 1
    var rects = drawRectAroundBlobs(thresholded, frame, minPxSize)
    var detections = []
    rects.forEach(function (r, index) {
+
       var y = frame.copy()
-      if ((r.x - 20) < 0 || r.y -20 < 0 || r.x+r.width + 20 > 640 || r.y+r.height+20 > 480) return
+      if ((r.x - 40) < 0 || r.y -40 < 0 || r.x+r.width + 40 > 640 || r.y+r.height+40 > 480) return
       var x = y.getRegion(new cv.Rect(r.x-20, r.y-20, 40, 40))
       if (!x) return;
       var prediction = svm.predict(getHog(x))
+
       // console.log(':: ', lccs[parseInt(prediction)], prediction)
       // return
       if (parseInt(prediction) === 0 && (r.y < (480/2)+40)) {
           frame.drawRectangle(
-            new cv.Point(r.x, r.y),
-            new cv.Point(r.x + r.width,
-            r.y + r.height),
+            new cv.Point(r.x - 20, r.y -20),
+            new cv.Point(r.x + 20, r.y + 20),
             new cv.Vec(0, 0, 255),
-            2, cv.LINE_8);
+            1, cv.LINE_8);
             // cv.imwrite('./gather/'+new Date().toISOString()+'.jpg', x)
             detections.push(r)
+            // return;
       }
+
+      // if ((r.x - 10) < 0 || r.y -10 < 0 || r.x+r.width + 10 > 640 || r.y+r.height+10 > 480) return
+      // var x2 = y.getRegion(new cv.Rect(r.x-5, r.y5, 10, 10))
+      // if (!x2) return;
+      // var prediction2 = svm.predict(getHog(x2))
+      // if (parseInt(prediction2) === 0 && (r.y < (480/2)+40)) {
+      //     frame.drawRectangle(
+      //       new cv.Point(r.x - 5, r.y - 5),
+      //       new cv.Point(r.x + 5, r.y + 5),
+      //       new cv.Vec(0, 255, 255),
+      //       2, cv.LINE_8);
+      //       // cv.imwrite('./gather/'+new Date().toISOString()+'.jpg', x)
+      //       detections.push(r);
+      //       return;
+      // }
+
+      // if ((r.x - 10) < 0 || r.y -10 < 0 || r.x+r.width + 10 > 640 || r.y+r.height+10 > 480) return
+      // var x3 = y.getRegion(new cv.Rect(r.x-5, r.y-5, 10, 10))
+      // if (!x3) return;
+      // var prediction3 = svm.predict(getHog(x3))
+      //
+      // if (parseInt(prediction3) === 0 && (r.y < (480/2)+40)) {
+      //     frame.drawRectangle(
+      //       new cv.Point(r.x - 5, r.y - 5),
+      //       new cv.Point(r.x + 5, r.y + 5),
+      //       new cv.Vec(255, 255, 0),
+      //       2, cv.LINE_8);
+      //       // cv.imwrite('./gather/'+new Date().toISOString()+'.jpg', x)
+      //       detections.push(r)
+      // }
    })
    tracker.update(frame, detections)
    cv.imshow('frame', frame)

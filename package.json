@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "brain.js": "^1.6.1",
+    "convnetjs": "^0.3.0",
     "euclidean-distance": "^1.0.0",
     "ml-dataset-iris": "^1.0.0",
     "ml-pca": "^2.1.0",
